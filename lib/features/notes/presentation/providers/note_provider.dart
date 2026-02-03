@@ -1,14 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:vibe_notes/core/database/isar_service.dart';
+import 'package:vibe_notes/core/database/storage_service.dart';
 import 'package:vibe_notes/features/notes/domain/note.dart';
 
-final isarServiceProvider = Provider<IsarService>((ref) {
-  return IsarService();
-});
-
-final notesProvider = FutureProvider<List<Note>>((ref) async {
-  final isarService = ref.watch(isarServiceProvider);
-  return await isarService.getAllNotes();
+final storageServiceProvider = Provider<StorageService>((ref) {
+  return StorageService();
 });
 
 final notesControllerProvider = StateNotifierProvider<NotesController, AsyncValue<List<Note>>>((ref) {
@@ -25,8 +20,8 @@ class NotesController extends StateNotifier<AsyncValue<List<Note>>> {
   Future<void> refresh() async {
     state = const AsyncValue.loading();
     try {
-      final isarService = _ref.read(isarServiceProvider);
-      final notes = await isarService.getAllNotes();
+      final storage = _ref.read(storageServiceProvider);
+      final notes = await storage.getAllNotes();
       state = AsyncValue.data(notes);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -34,19 +29,21 @@ class NotesController extends StateNotifier<AsyncValue<List<Note>>> {
   }
 
   Future<void> addNote(String content, {String? audioPath}) async {
-    final isarService = _ref.read(isarServiceProvider);
-    final note = Note()
-      ..content = content
-      ..createdAt = DateTime.now()
-      ..audioPath = audioPath;
+    final storage = _ref.read(storageServiceProvider);
+    final note = Note(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      content: content,
+      createdAt: DateTime.now(),
+      audioPath: audioPath,
+    );
     
-    await isarService.saveNote(note);
+    await storage.saveNote(note);
     await refresh();
   }
 
-  Future<void> deleteNote(int id) async {
-    final isarService = _ref.read(isarServiceProvider);
-    await isarService.deleteNote(id);
+  Future<void> deleteNote(String id) async {
+    final storage = _ref.read(storageServiceProvider);
+    await storage.deleteNote(id);
     await refresh();
   }
 }

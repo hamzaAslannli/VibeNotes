@@ -68,7 +68,7 @@ class HomePage extends ConsumerWidget {
 
   Widget _buildNoteCard(BuildContext context, Note note, WidgetRef ref) {
     return Dismissible(
-      key: Key(note.id.toString()),
+      key: Key(note.id),
       background: Container(
         color: Colors.red.withOpacity(0.8),
         alignment: Alignment.centerRight,
