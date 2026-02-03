@@ -23,11 +23,11 @@ class RecorderService {
   }
 
   Future<Stream<RecordState>> get onStateChanged async {
-    return _audioRecorder.onStateChanged(_audioRecorder.onStateChanged); // Re-exposing stream
+    return _audioRecorder.onStateChanged(); 
   }
   
  // Helper to expose the pure stream directly if needed, or better, just expose state 
-  Stream<RecordState> get stateStream => _audioRecorder.onStateChanged;
+  Stream<RecordState> get stateStream => _audioRecorder.onStateChanged();
   Stream<Amplitude> get amplitudeStream => _audioRecorder.onAmplitudeChanged(const Duration(milliseconds: 160));
 
   Future<void> start(String fileName) async {
