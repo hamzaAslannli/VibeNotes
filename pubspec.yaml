@@ -4,23 +4,23 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.2.0 <4.0.0'
+  sdk: '>=2.19.2 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  flutter_riverpod: ^2.4.9
+  flutter_riverpod: ^2.3.6 # Last version supporting Dart 2.17
   isar: ^3.1.0+1
   isar_flutter_libs: ^3.1.0+1
-  path_provider: ^2.1.2
-  record: ^5.1.0
+  path_provider: ^2.0.15
+  record: ^4.4.4 # Version before v5 (Dart 3)
   cupertino_icons: ^1.0.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
-  build_runner: ^2.4.8
+  flutter_lints: ^2.0.0
+  build_runner: ^2.3.3
   isar_generator: ^3.1.0+1
 
 flutter:

@@ -5,12 +5,12 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 
 class RecorderService {
-  final AudioRecorder _audioRecorder;
+  final Record _audioRecorder; // Record 4.x uses 'Record' class, not 'AudioRecorder'
   StreamSubscription<RecordState>? _recordStateSubscription;
   StreamSubscription<Amplitude>? _amplitudeSubscription;
 
-  RecorderService({AudioRecorder? audioRecorder})
-      : _audioRecorder = audioRecorder ?? AudioRecorder();
+  RecorderService({Record? audioRecorder})
+      : _audioRecorder = audioRecorder ?? Record();
 
   Future<void> dispose() async {
     await _recordStateSubscription?.cancel();
@@ -44,9 +44,11 @@ class RecorderService {
         await Directory(dir.path).create(recursive: true);
       }
 
+      // Record 4.x uses different start signature
+      // encoder: AudioEncoder.aacLc is default usually or passed differently
       await _audioRecorder.start(
-        const RecordConfig(encoder: AudioEncoder.aacLc), 
-        path: path.isEmpty ? null : path, 
+        path: path.isEmpty ? null : path, // Record 4.x supports null path for stream/temp
+        encoder: AudioEncoder.aacLc,
       );
     }
   }
