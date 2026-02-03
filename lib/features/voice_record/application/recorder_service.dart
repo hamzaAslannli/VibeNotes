@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
@@ -31,15 +32,21 @@ class RecorderService {
 
   Future<void> start(String fileName) async {
     if (await _audioRecorder.hasPermission()) {
-      final dir = await getApplicationDocumentsDirectory();
-      final path = '${dir.path}/$fileName';
-      
-      // Ensure directory exists
-      await Directory(dir.path).create(recursive: true);
+      String path;
+      if (kIsWeb) {
+        // On web, path is not used/supported in the same way for saving files directly via the record package often
+        // but we can pass a dummy or let the browser handle the blob.
+        // For simplicity in this Vibe coding session, we won't specify a path which triggers Memory/Blob recording.
+        path = ''; 
+      } else {
+        final dir = await getApplicationDocumentsDirectory();
+        path = '${dir.path}/$fileName';
+        await Directory(dir.path).create(recursive: true);
+      }
 
       await _audioRecorder.start(
         const RecordConfig(encoder: AudioEncoder.aacLc), 
-        path: path,
+        path: path.isEmpty ? null : path, 
       );
     }
   }
