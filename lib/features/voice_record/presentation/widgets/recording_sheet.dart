@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:record/record.dart';
 import 'package:vibe_notes/features/voice_record/presentation/providers/recorder_provider.dart';
 import 'package:vibe_notes/features/notes/presentation/providers/note_provider.dart';
 
@@ -15,6 +14,7 @@ class RecordingSheet extends ConsumerStatefulWidget {
 class _RecordingSheetState extends ConsumerState<RecordingSheet> with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  bool _isRecording = false;
 
   @override
   void initState() {
@@ -38,21 +38,28 @@ class _RecordingSheetState extends ConsumerState<RecordingSheet> with SingleTick
     final fileName = 'note_${DateTime.now().millisecondsSinceEpoch}.m4a';
     await ref.read(recorderServiceProvider).start(fileName);
     ref.read(recordingDurationProvider.notifier).startTimer();
+    setState(() {
+      _isRecording = true;
+    });
   }
 
   Future<void> _stopRecording() async {
+    if (!_isRecording) return;
+    
     final path = await ref.read(recorderServiceProvider).stop();
     ref.read(recordingDurationProvider.notifier).stopTimer();
     
-    if (path != null) {
-      if (mounted) {
-         // Create a new note automatically
-         await ref.read(notesControllerProvider.notifier).addNote(
-           "New Voice Note ${DateTime.now().toString()}", // Placeholder until AI summary
-           audioPath: path
-         );
-         Navigator.pop(context);
-      }
+    setState(() {
+      _isRecording = false;
+    });
+    
+    if (mounted) {
+      // Create a new note automatically
+      await ref.read(notesControllerProvider.notifier).addNote(
+        "Voice Note ${DateTime.now().toString().substring(0, 16)}",
+        audioPath: path,
+      );
+      Navigator.pop(context);
     }
   }
 
@@ -65,7 +72,6 @@ class _RecordingSheetState extends ConsumerState<RecordingSheet> with SingleTick
   @override
   Widget build(BuildContext context) {
     final duration = ref.watch(recordingDurationProvider);
-    final amplitudeAsync = ref.watch(amplitudeProvider);
 
     // Format duration nicely
     String twoDigits(int n) => n.toString().padLeft(2, "0");
@@ -81,7 +87,7 @@ class _RecordingSheetState extends ConsumerState<RecordingSheet> with SingleTick
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Listening...',
+            _isRecording ? 'Recording...' : 'Tap to Record',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: Colors.white54,
             ),
@@ -108,21 +114,16 @@ class _RecordingSheetState extends ConsumerState<RecordingSheet> with SingleTick
               ),
               child: FloatingActionButton(
                 onPressed: _stopRecording,
-                backgroundColor: Colors.deepPurpleAccent,
+                backgroundColor: _isRecording ? Colors.red : Colors.deepPurpleAccent,
                 shape: const CircleBorder(),
-                child: const Icon(Icons.stop, size: 32),
+                child: Icon(_isRecording ? Icons.stop : Icons.mic, size: 32),
               ),
             ),
           ),
           const SizedBox(height: 20),
-          // Simple visualizer bar based on amplitude could go here
-          amplitudeAsync.when(
-            data: (amp) => Text(
-              "Level: ${amp.current.toStringAsFixed(1)} dB",
-              style: const TextStyle(color: Colors.white24, fontSize: 10),
-            ),
-            loading: () => const SizedBox(),
-            error: (_, __) => const SizedBox(),
+          Text(
+            _isRecording ? 'Tap to stop recording' : '',
+            style: const TextStyle(color: Colors.white38, fontSize: 12),
           ),
         ],
       ),
