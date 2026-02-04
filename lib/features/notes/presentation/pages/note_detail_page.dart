@@ -99,10 +99,10 @@ class _NoteDetailPageState extends ConsumerState<NoteDetailPage> {
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'delete',
                 child: Row(
-                  children: [
+                  children: const [
                     Icon(Icons.delete_outline, color: Colors.red, size: 20),
                     SizedBox(width: 12),
                     Text('Delete', style: TextStyle(color: Colors.red)),
