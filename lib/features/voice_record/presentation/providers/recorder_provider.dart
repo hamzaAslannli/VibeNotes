@@ -8,31 +8,29 @@ final recorderServiceProvider = Provider<RecorderService>((ref) {
   return service;
 });
 
-// Simple timer provider for recording duration
-final recordingDurationProvider = StateNotifierProvider<RecordingTimerNotifier, Duration>((ref) {
-  return RecordingTimerNotifier();
+final recordingDurationProvider = StateNotifierProvider<RecordingDurationNotifier, Duration>((ref) {
+  return RecordingDurationNotifier();
 });
 
-class RecordingTimerNotifier extends StateNotifier<Duration> {
+class RecordingDurationNotifier extends StateNotifier<Duration> {
+  RecordingDurationNotifier() : super(Duration.zero);
+  
   Timer? _timer;
-
-  RecordingTimerNotifier() : super(Duration.zero);
+  DateTime? _startTime;
 
   void startTimer() {
-    _timer?.cancel();
+    _startTime = DateTime.now();
     state = Duration.zero;
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      state = Duration(seconds: timer.tick);
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_startTime != null) {
+        state = DateTime.now().difference(_startTime!);
+      }
     });
   }
 
   void stopTimer() {
     _timer?.cancel();
     _timer = null;
-  }
-  
-  void reset() {
-    stopTimer();
     state = Duration.zero;
   }
 

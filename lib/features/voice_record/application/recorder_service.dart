@@ -1,52 +1,58 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
 
-// Simplified recorder that works on Web (mock) and Mobile (real)
 class RecorderService {
-  bool _isRecording = false;
-  DateTime? _startTime;
-  Timer? _durationTimer;
-  final StreamController<Duration> _durationController = StreamController<Duration>.broadcast();
-
-  Stream<Duration> get durationStream => _durationController.stream;
-  bool get isRecording => _isRecording;
+  final Record _audioRecorder = Record();
+  
+  Stream<RecordState> get stateStream => _audioRecorder.onStateChanged();
+  Stream<Amplitude> get amplitudeStream => _audioRecorder.onAmplitudeChanged(const Duration(milliseconds: 100));
 
   Future<bool> hasPermission() async {
-    // On web, we'll just return true for demo purposes
-    return true;
+    return await _audioRecorder.hasPermission();
   }
 
-  Future<void> start(String fileName) async {
-    if (_isRecording) return;
-    
-    _isRecording = true;
-    _startTime = DateTime.now();
-    
-    // Start a timer to emit duration updates
-    _durationTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_startTime != null) {
-        final elapsed = DateTime.now().difference(_startTime!);
-        _durationController.add(elapsed);
+  Future<String?> start(String fileName) async {
+    if (await _audioRecorder.hasPermission()) {
+      String? path;
+      
+      if (!kIsWeb) {
+        final dir = await getApplicationDocumentsDirectory();
+        path = '${dir.path}/$fileName';
+        await Directory(dir.path).create(recursive: true);
       }
-    });
+
+      await _audioRecorder.start(
+        path: path,
+        encoder: AudioEncoder.aacLc,
+        bitRate: 128000,
+        samplingRate: 44100,
+      );
+      
+      return path;
+    }
+    return null;
   }
 
   Future<String?> stop() async {
-    if (!_isRecording) return null;
-    
-    _isRecording = false;
-    _durationTimer?.cancel();
-    _durationTimer = null;
-    
-    // Return a mock path for Web, or could be real path for mobile later
-    final mockPath = kIsWeb ? 'web_recording_${DateTime.now().millisecondsSinceEpoch}.m4a' : null;
-    _startTime = null;
-    
-    return mockPath;
+    return await _audioRecorder.stop();
+  }
+
+  Future<void> pause() async {
+    await _audioRecorder.pause();
+  }
+
+  Future<void> resume() async {
+    await _audioRecorder.resume();
+  }
+
+  Future<bool> isRecording() async {
+    return await _audioRecorder.isRecording();
   }
 
   void dispose() {
-    _durationTimer?.cancel();
-    _durationController.close();
+    _audioRecorder.dispose();
   }
 }

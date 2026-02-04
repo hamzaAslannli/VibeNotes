@@ -6,11 +6,10 @@ final storageServiceProvider = Provider<StorageService>((ref) {
   return StorageService();
 });
 
-// Simple state provider for notes list
 final notesListProvider = StateProvider<List<Note>>((ref) => []);
 final notesLoadingProvider = StateProvider<bool>((ref) => true);
+final categoryFilterProvider = StateProvider<NoteCategory?>((ref) => null);
 
-// Notifier class
 class NotesController {
   final Ref _ref;
   
@@ -27,13 +26,14 @@ class NotesController {
     }
   }
 
-  Future<void> addNote(String content, {String? audioPath}) async {
+  Future<void> addNote(String content, {String? audioPath, NoteCategory category = NoteCategory.other}) async {
     final storage = _ref.read(storageServiceProvider);
     final note = Note(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       content: content,
       createdAt: DateTime.now(),
       audioPath: audioPath,
+      category: category,
     );
     
     await storage.saveNote(note);
@@ -43,6 +43,12 @@ class NotesController {
   Future<void> deleteNote(String id) async {
     final storage = _ref.read(storageServiceProvider);
     await storage.deleteNote(id);
+    await loadNotes();
+  }
+
+  Future<void> updateNote(Note note) async {
+    final storage = _ref.read(storageServiceProvider);
+    await storage.saveNote(note);
     await loadNotes();
   }
 }
