@@ -21,14 +21,13 @@ class _RecordingSheetState extends ConsumerState<RecordingSheet> with SingleTick
     super.initState();
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 1),
+      duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
     
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    // Auto-start recording when sheet opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startRecording();
     });
@@ -38,9 +37,7 @@ class _RecordingSheetState extends ConsumerState<RecordingSheet> with SingleTick
     final fileName = 'note_${DateTime.now().millisecondsSinceEpoch}.m4a';
     await ref.read(recorderServiceProvider).start(fileName);
     ref.read(recordingDurationProvider.notifier).startTimer();
-    setState(() {
-      _isRecording = true;
-    });
+    setState(() => _isRecording = true);
   }
 
   Future<void> _stopRecording() async {
@@ -48,19 +45,68 @@ class _RecordingSheetState extends ConsumerState<RecordingSheet> with SingleTick
     
     final path = await ref.read(recorderServiceProvider).stop();
     ref.read(recordingDurationProvider.notifier).stopTimer();
-    
-    setState(() {
-      _isRecording = false;
-    });
+    setState(() => _isRecording = false);
     
     if (mounted) {
-      // Create a new note automatically
-      await ref.read(notesControllerProvider.notifier).addNote(
-        "Voice Note ${DateTime.now().toString().substring(0, 16)}",
-        audioPath: path,
-      );
+      // Show title input dialog
+      final title = await _showTitleDialog();
+      if (title != null && title.isNotEmpty) {
+        await ref.read(notesControllerProvider.notifier).addNote(
+          title,
+          audioPath: path,
+        );
+      }
       Navigator.pop(context);
     }
+  }
+
+  Future<String?> _showTitleDialog() async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Name your note',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: 'e.g. Meeting notes, Ideas...',
+            hintStyle: TextStyle(color: Colors.white38),
+            filled: true,
+            fillColor: Colors.white10,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.deepPurpleAccent, width: 2),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'Untitled Note'),
+            child: Text('Skip', style: TextStyle(color: Colors.white38)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, controller.text.isEmpty ? 'Untitled Note' : controller.text),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepPurpleAccent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Save', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -72,58 +118,108 @@ class _RecordingSheetState extends ConsumerState<RecordingSheet> with SingleTick
   @override
   Widget build(BuildContext context) {
     final duration = ref.watch(recordingDurationProvider);
-
-    // Format duration nicely
     String twoDigits(int n) => n.toString().padLeft(2, "0");
     final formattedDuration = "${twoDigits(duration.inMinutes)}:${twoDigits(duration.inSeconds.remainder(60))}";
 
     return Container(
-      height: 300,
-      decoration: const BoxDecoration(
-        color: Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      height: 320,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF2A1B3D),
+            const Color(0xFF1E1E1E),
+          ],
+        ),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            _isRecording ? 'Recording...' : 'Tap to Record',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Colors.white54,
+          // Status indicator
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: _isRecording ? Colors.red.withOpacity(0.2) : Colors.white10,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_isRecording)
+                  Container(
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                Text(
+                  _isRecording ? 'Recording' : 'Ready',
+                  style: TextStyle(
+                    color: _isRecording ? Colors.red[300] : Colors.white54,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
+          
+          // Timer
           Text(
             formattedDuration,
             style: const TextStyle(
-              fontSize: 48,
-              fontWeight: FontWeight.bold,
+              fontSize: 56,
+              fontWeight: FontWeight.w200,
               color: Colors.white,
+              letterSpacing: 4,
               fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
-          const SizedBox(height: 40),
+          const SizedBox(height: 32),
+          
+          // Stop button with pulse animation
           ScaleTransition(
-            scale: _pulseAnimation,
-            child: Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.deepPurpleAccent.withOpacity(0.3),
-              ),
-              child: FloatingActionButton(
-                onPressed: _stopRecording,
-                backgroundColor: _isRecording ? Colors.red : Colors.deepPurpleAccent,
-                shape: const CircleBorder(),
-                child: Icon(_isRecording ? Icons.stop : Icons.mic, size: 32),
+            scale: _isRecording ? _pulseAnimation : const AlwaysStoppedAnimation(1.0),
+            child: GestureDetector(
+              onTap: _stopRecording,
+              child: Container(
+                width: 88,
+                height: 88,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: _isRecording 
+                      ? [Colors.red[400]!, Colors.red[700]!]
+                      : [Colors.deepPurple[400]!, Colors.deepPurple[700]!],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (_isRecording ? Colors.red : Colors.deepPurpleAccent).withOpacity(0.4),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  _isRecording ? Icons.stop_rounded : Icons.mic,
+                  size: 40,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+          
           Text(
-            _isRecording ? 'Tap to stop recording' : '',
-            style: const TextStyle(color: Colors.white38, fontSize: 12),
+            _isRecording ? 'Tap to finish' : '',
+            style: const TextStyle(color: Colors.white30, fontSize: 14),
           ),
         ],
       ),

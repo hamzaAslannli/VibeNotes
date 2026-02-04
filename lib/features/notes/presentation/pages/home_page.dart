@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vibe_notes/features/notes/presentation/providers/note_provider.dart';
 import 'package:vibe_notes/features/voice_record/presentation/widgets/recording_sheet.dart';
 import 'package:vibe_notes/features/notes/domain/note.dart';
-import 'package:intl/intl.dart';
+import 'package:vibe_notes/core/utils/date_helper.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -17,7 +17,7 @@ class HomePage extends ConsumerWidget {
         title: const Text('Vibe Notes'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings, color: Colors.white70),
+            icon: const Icon(Icons.more_vert, color: Colors.white54),
             onPressed: () {},
           ),
         ],
@@ -25,22 +25,10 @@ class HomePage extends ConsumerWidget {
       body: notesAsync.when(
         data: (notes) {
           if (notes.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.mic_none_outlined, size: 64, color: Colors.white12),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No vibes yet.',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white30),
-                  ),
-                ],
-              ),
-            );
+            return _buildEmptyState(context);
           }
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
             itemCount: notes.length,
             itemBuilder: (context, index) {
               final note = notes[index];
@@ -48,83 +36,185 @@ class HomePage extends ConsumerWidget {
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('Error: $e')),
+        loading: () => const Center(child: CircularProgressIndicator(color: Colors.deepPurpleAccent)),
+        error: (e, st) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.white54))),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            backgroundColor: Colors.transparent,
-            isScrollControlled: true,
-            builder: (context) => const RecordingSheet(),
-          );
-        },
-        child: const Icon(Icons.mic),
-      ),
+      floatingActionButton: _buildPremiumFAB(context),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Gradient mic icon
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [Colors.deepPurple.withOpacity(0.3), Colors.purple.withOpacity(0.1)],
+              ),
+            ),
+            child: const Icon(Icons.mic_none_rounded, size: 48, color: Colors.white24),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'No vibes yet',
+            style: TextStyle(
+              color: Colors.white54,
+              fontSize: 20,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Tap the button below to record your first note',
+            style: TextStyle(color: Colors.white24, fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPremiumFAB(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: Colors.transparent,
+          isScrollControlled: true,
+          builder: (context) => const RecordingSheet(),
+        );
+      },
+      child: Container(
+        width: 72,
+        height: 72,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF9C27B0), // Purple
+              Color(0xFF673AB7), // Deep Purple
+              Color(0xFF3F51B5), // Indigo hint
+            ],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.deepPurpleAccent.withOpacity(0.5),
+              blurRadius: 24,
+              spreadRadius: 0,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: Colors.purple.withOpacity(0.3),
+              blurRadius: 40,
+              spreadRadius: -5,
+              offset: const Offset(0, 12),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.mic_rounded,
+          size: 32,
+          color: Colors.white,
+        ),
+      ),
     );
   }
 
   Widget _buildNoteCard(BuildContext context, Note note, WidgetRef ref) {
     return Dismissible(
       key: Key(note.id),
+      direction: DismissDirection.endToStart,
       background: Container(
-        color: Colors.red.withOpacity(0.8),
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.8),
+          borderRadius: BorderRadius.circular(16),
+        ),
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete, color: Colors.white),
+        padding: const EdgeInsets.only(right: 24),
+        child: const Icon(Icons.delete_outline, color: Colors.white, size: 28),
       ),
       onDismissed: (_) {
-         ref.read(notesControllerProvider.notifier).deleteNote(note.id);
+        ref.read(notesControllerProvider.notifier).deleteNote(note.id);
       },
-      child: Card(
+      child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E1E),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () {
+              // Future: Navigate to note detail
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
                 children: [
+                  // Audio indicator
                   if (note.audioPath != null)
-                     const Icon(Icons.graphic_eq, color: Colors.deepPurpleAccent, size: 16),
-                  Text(
-                    DateFormat('MMM d, h:mm a').format(note.createdAt),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontSize: 12, 
-                      color: Colors.white38
+                    Container(
+                      width: 44,
+                      height: 44,
+                      margin: const EdgeInsets.only(right: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.deepPurpleAccent.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.graphic_eq_rounded,
+                        color: Colors.deepPurpleAccent,
+                        size: 22,
+                      ),
                     ),
+                  
+                  // Content
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          note.content,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          DateHelper.getRelativeTime(note.createdAt),
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.4),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Chevron
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: Colors.white.withOpacity(0.2),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                note.content,
-                style: Theme.of(context).textTheme.titleMedium,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (note.tags.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Wrap(
-                    spacing: 8,
-                    children: note.tags.map((tag) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.white10,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '#$tag',
-                        style: const TextStyle(fontSize: 10, color: Colors.white70),
-                      ),
-                    )).toList(),
-                  ),
-                ),
-            ],
+            ),
           ),
         ),
       ),
