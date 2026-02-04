@@ -48,13 +48,9 @@ class _RecordingSheetState extends ConsumerState<RecordingSheet> with SingleTick
     setState(() => _isRecording = false);
     
     if (mounted) {
-      // Show title input dialog
       final title = await _showTitleDialog();
       if (title != null && title.isNotEmpty) {
-        await ref.read(notesControllerProvider.notifier).addNote(
-          title,
-          audioPath: path,
-        );
+        await ref.read(notesControllerProvider).addNote(title, audioPath: path);
       }
       Navigator.pop(context);
     }
@@ -68,40 +64,28 @@ class _RecordingSheetState extends ConsumerState<RecordingSheet> with SingleTick
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E1E),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Name your note',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Name your note', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: TextField(
           controller: controller,
           autofocus: true,
           style: const TextStyle(color: Colors.white),
           decoration: InputDecoration(
             hintText: 'e.g. Meeting notes, Ideas...',
-            hintStyle: TextStyle(color: Colors.white38),
+            hintStyle: const TextStyle(color: Colors.white38),
             filled: true,
             fillColor: Colors.white10,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.deepPurpleAccent, width: 2),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.deepPurpleAccent, width: 2)),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, 'Untitled Note'),
-            child: Text('Skip', style: TextStyle(color: Colors.white38)),
+            child: const Text('Skip', style: TextStyle(color: Colors.white38)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, controller.text.isEmpty ? 'Untitled Note' : controller.text),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurpleAccent,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurpleAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
             child: const Text('Save', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -123,21 +107,13 @@ class _RecordingSheetState extends ConsumerState<RecordingSheet> with SingleTick
 
     return Container(
       height: 320,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            const Color(0xFF2A1B3D),
-            const Color(0xFF1E1E1E),
-          ],
-        ),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF2A1B3D), Color(0xFF1E1E1E)]),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Status indicator
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
@@ -148,41 +124,14 @@ class _RecordingSheetState extends ConsumerState<RecordingSheet> with SingleTick
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (_isRecording)
-                  Container(
-                    width: 8,
-                    height: 8,
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                Text(
-                  _isRecording ? 'Recording' : 'Ready',
-                  style: TextStyle(
-                    color: _isRecording ? Colors.red[300] : Colors.white54,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                  Container(width: 8, height: 8, margin: const EdgeInsets.only(right: 8), decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle)),
+                Text(_isRecording ? 'Recording' : 'Ready', style: TextStyle(color: _isRecording ? Colors.red[300] : Colors.white54, fontWeight: FontWeight.w500)),
               ],
             ),
           ),
           const SizedBox(height: 24),
-          
-          // Timer
-          Text(
-            formattedDuration,
-            style: const TextStyle(
-              fontSize: 56,
-              fontWeight: FontWeight.w200,
-              color: Colors.white,
-              letterSpacing: 4,
-              fontFeatures: [FontFeature.tabularFigures()],
-            ),
-          ),
+          Text(formattedDuration, style: const TextStyle(fontSize: 56, fontWeight: FontWeight.w200, color: Colors.white, letterSpacing: 4, fontFeatures: [FontFeature.tabularFigures()])),
           const SizedBox(height: 32),
-          
-          // Stop button with pulse animation
           ScaleTransition(
             scale: _isRecording ? _pulseAnimation : const AlwaysStoppedAnimation(1.0),
             child: GestureDetector(
@@ -195,32 +144,16 @@ class _RecordingSheetState extends ConsumerState<RecordingSheet> with SingleTick
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: _isRecording 
-                      ? [Colors.red[400]!, Colors.red[700]!]
-                      : [Colors.deepPurple[400]!, Colors.deepPurple[700]!],
+                    colors: _isRecording ? [Colors.red[400]!, Colors.red[700]!] : [Colors.deepPurple[400]!, Colors.deepPurple[700]!],
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: (_isRecording ? Colors.red : Colors.deepPurpleAccent).withOpacity(0.4),
-                      blurRadius: 20,
-                      spreadRadius: 2,
-                    ),
-                  ],
+                  boxShadow: [BoxShadow(color: (_isRecording ? Colors.red : Colors.deepPurpleAccent).withOpacity(0.4), blurRadius: 20, spreadRadius: 2)],
                 ),
-                child: Icon(
-                  _isRecording ? Icons.stop_rounded : Icons.mic,
-                  size: 40,
-                  color: Colors.white,
-                ),
+                child: Icon(_isRecording ? Icons.stop_rounded : Icons.mic, size: 40, color: Colors.white),
               ),
             ),
           ),
           const SizedBox(height: 16),
-          
-          Text(
-            _isRecording ? 'Tap to finish' : '',
-            style: const TextStyle(color: Colors.white30, fontSize: 14),
-          ),
+          Text(_isRecording ? 'Tap to finish' : '', style: const TextStyle(color: Colors.white30, fontSize: 14)),
         ],
       ),
     );

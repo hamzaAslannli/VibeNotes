@@ -6,25 +6,24 @@ final storageServiceProvider = Provider<StorageService>((ref) {
   return StorageService();
 });
 
-final notesControllerProvider = StateNotifierProvider<NotesController, AsyncValue<List<Note>>>((ref) {
-  return NotesController(ref);
-});
+// Simple state provider for notes list
+final notesListProvider = StateProvider<List<Note>>((ref) => []);
+final notesLoadingProvider = StateProvider<bool>((ref) => true);
 
-class NotesController extends StateNotifier<AsyncValue<List<Note>>> {
+// Notifier class
+class NotesController {
   final Ref _ref;
+  
+  NotesController(this._ref);
 
-  NotesController(this._ref) : super(const AsyncValue.loading()) {
-    refresh();
-  }
-
-  Future<void> refresh() async {
-    state = const AsyncValue.loading();
+  Future<void> loadNotes() async {
+    _ref.read(notesLoadingProvider.notifier).state = true;
     try {
       final storage = _ref.read(storageServiceProvider);
       final notes = await storage.getAllNotes();
-      state = AsyncValue.data(notes);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      _ref.read(notesListProvider.notifier).state = notes;
+    } finally {
+      _ref.read(notesLoadingProvider.notifier).state = false;
     }
   }
 
@@ -38,12 +37,16 @@ class NotesController extends StateNotifier<AsyncValue<List<Note>>> {
     );
     
     await storage.saveNote(note);
-    await refresh();
+    await loadNotes();
   }
 
   Future<void> deleteNote(String id) async {
     final storage = _ref.read(storageServiceProvider);
     await storage.deleteNote(id);
-    await refresh();
+    await loadNotes();
   }
 }
+
+final notesControllerProvider = Provider<NotesController>((ref) {
+  return NotesController(ref);
+});

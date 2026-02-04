@@ -6,7 +6,7 @@ import 'package:vibe_notes/features/notes/domain/note.dart';
 import 'package:vibe_notes/features/notes/presentation/pages/note_detail_page.dart';
 import 'package:vibe_notes/core/utils/date_helper.dart';
 
-// Sort options provider
+// Sort options
 enum SortOption { newest, oldest }
 final sortOptionProvider = StateProvider<SortOption>((ref) => SortOption.newest);
 final searchQueryProvider = StateProvider<String>((ref) => '');
@@ -23,6 +23,15 @@ class _HomePageState extends ConsumerState<HomePage> {
   final _searchController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    // Load notes on init
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(notesControllerProvider).loadNotes();
+    });
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -30,7 +39,8 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final notesAsync = ref.watch(notesControllerProvider);
+    final notes = ref.watch(notesListProvider);
+    final isLoading = ref.watch(notesLoadingProvider);
     final sortOption = ref.watch(sortOptionProvider);
     final searchQuery = ref.watch(searchQueryProvider);
 
@@ -41,7 +51,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 controller: _searchController,
                 autofocus: true,
                 style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   hintText: 'Search notes...',
                   hintStyle: TextStyle(color: Colors.white38),
                   border: InputBorder.none,
@@ -52,7 +62,6 @@ class _HomePageState extends ConsumerState<HomePage> {
               )
             : const Text('Vibe Notes'),
         actions: [
-          // Search toggle
           IconButton(
             icon: Icon(_showSearch ? Icons.close : Icons.search, color: Colors.white70),
             onPressed: () {
@@ -65,7 +74,6 @@ class _HomePageState extends ConsumerState<HomePage> {
               });
             },
           ),
-          // Menu
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.white70),
             color: const Color(0xFF2A2A2A),
@@ -78,7 +86,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               }
             },
             itemBuilder: (context) => [
-              PopupMenuItem(
+              const PopupMenuItem(
                 enabled: false,
                 child: Text('Sort by', style: TextStyle(color: Colors.white38, fontSize: 12)),
               ),
@@ -86,11 +94,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                 value: 'sort_newest',
                 child: Row(
                   children: [
-                    Icon(
-                      sortOption == SortOption.newest ? Icons.check : null,
-                      color: Colors.deepPurpleAccent,
-                      size: 18,
-                    ),
+                    if (sortOption == SortOption.newest)
+                      const Icon(Icons.check, color: Colors.deepPurpleAccent, size: 18)
+                    else
+                      const SizedBox(width: 18),
                     const SizedBox(width: 12),
                     const Text('Newest first', style: TextStyle(color: Colors.white)),
                   ],
@@ -100,24 +107,12 @@ class _HomePageState extends ConsumerState<HomePage> {
                 value: 'sort_oldest',
                 child: Row(
                   children: [
-                    Icon(
-                      sortOption == SortOption.oldest ? Icons.check : null,
-                      color: Colors.deepPurpleAccent,
-                      size: 18,
-                    ),
+                    if (sortOption == SortOption.oldest)
+                      const Icon(Icons.check, color: Colors.deepPurpleAccent, size: 18)
+                    else
+                      const SizedBox(width: 18),
                     const SizedBox(width: 12),
                     const Text('Oldest first', style: TextStyle(color: Colors.white)),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              PopupMenuItem(
-                value: 'about',
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.white54, size: 18),
-                    const SizedBox(width: 12),
-                    const Text('About', style: TextStyle(color: Colors.white)),
                   ],
                 ),
               ),
@@ -125,43 +120,45 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ],
       ),
-      body: notesAsync.when(
-        data: (notes) {
-          // Apply search filter
-          var filteredNotes = notes.where((note) {
-            if (searchQuery.isEmpty) return true;
-            return note.content.toLowerCase().contains(searchQuery.toLowerCase());
-          }).toList();
-          
-          // Apply sort
-          if (sortOption == SortOption.oldest) {
-            filteredNotes.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-          } else {
-            filteredNotes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          }
-
-          if (filteredNotes.isEmpty && searchQuery.isNotEmpty) {
-            return _buildNoResultsState();
-          }
-          
-          if (filteredNotes.isEmpty) {
-            return _buildEmptyState(context);
-          }
-          
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-            itemCount: filteredNotes.length,
-            itemBuilder: (context, index) {
-              final note = filteredNotes[index];
-              return _buildNoteCard(context, note, ref);
-            },
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator(color: Colors.deepPurpleAccent)),
-        error: (e, st) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.white54))),
-      ),
+      body: _buildBody(notes, isLoading, sortOption, searchQuery),
       floatingActionButton: _buildPremiumFAB(context),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+    );
+  }
+
+  Widget _buildBody(List<Note> notes, bool isLoading, SortOption sortOption, String searchQuery) {
+    if (isLoading && notes.isEmpty) {
+      return const Center(child: CircularProgressIndicator(color: Colors.deepPurpleAccent));
+    }
+
+    // Apply search filter
+    var filteredNotes = notes.where((note) {
+      if (searchQuery.isEmpty) return true;
+      return note.content.toLowerCase().contains(searchQuery.toLowerCase());
+    }).toList();
+    
+    // Apply sort
+    if (sortOption == SortOption.oldest) {
+      filteredNotes.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    } else {
+      filteredNotes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+
+    if (filteredNotes.isEmpty && searchQuery.isNotEmpty) {
+      return _buildNoResultsState();
+    }
+    
+    if (filteredNotes.isEmpty) {
+      return _buildEmptyState(context);
+    }
+    
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+      itemCount: filteredNotes.length,
+      itemBuilder: (context, index) {
+        final note = filteredNotes[index];
+        return _buildNoteCard(context, note, ref);
+      },
     );
   }
 
@@ -169,18 +166,12 @@ class _HomePageState extends ConsumerState<HomePage> {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: [
+        children: const [
           Icon(Icons.search_off, size: 64, color: Colors.white24),
-          const SizedBox(height: 16),
-          const Text(
-            'No notes found',
-            style: TextStyle(color: Colors.white54, fontSize: 18),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Try a different search term',
-            style: TextStyle(color: Colors.white24, fontSize: 14),
-          ),
+          SizedBox(height: 16),
+          Text('No notes found', style: TextStyle(color: Colors.white54, fontSize: 18)),
+          SizedBox(height: 8),
+          Text('Try a different search term', style: TextStyle(color: Colors.white24, fontSize: 14)),
         ],
       ),
     );
@@ -203,15 +194,9 @@ class _HomePageState extends ConsumerState<HomePage> {
             child: const Icon(Icons.mic_none_rounded, size: 48, color: Colors.white24),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'No vibes yet',
-            style: TextStyle(color: Colors.white54, fontSize: 20, fontWeight: FontWeight.w500),
-          ),
+          const Text('No vibes yet', style: TextStyle(color: Colors.white54, fontSize: 20, fontWeight: FontWeight.w500)),
           const SizedBox(height: 8),
-          const Text(
-            'Tap the button below to record your first note',
-            style: TextStyle(color: Colors.white24, fontSize: 14),
-          ),
+          const Text('Tap the button below to record your first note', style: TextStyle(color: Colors.white24, fontSize: 14)),
         ],
       ),
     );
@@ -238,18 +223,8 @@ class _HomePageState extends ConsumerState<HomePage> {
             colors: [Color(0xFF9C27B0), Color(0xFF673AB7), Color(0xFF3F51B5)],
           ),
           boxShadow: [
-            BoxShadow(
-              color: Colors.deepPurpleAccent.withOpacity(0.5),
-              blurRadius: 24,
-              spreadRadius: 0,
-              offset: const Offset(0, 8),
-            ),
-            BoxShadow(
-              color: Colors.purple.withOpacity(0.3),
-              blurRadius: 40,
-              spreadRadius: -5,
-              offset: const Offset(0, 12),
-            ),
+            BoxShadow(color: Colors.deepPurpleAccent.withOpacity(0.5), blurRadius: 24, offset: const Offset(0, 8)),
+            BoxShadow(color: Colors.purple.withOpacity(0.3), blurRadius: 40, spreadRadius: -5, offset: const Offset(0, 12)),
           ],
         ),
         child: const Icon(Icons.mic_rounded, size: 32, color: Colors.white),
@@ -263,16 +238,13 @@ class _HomePageState extends ConsumerState<HomePage> {
       direction: DismissDirection.endToStart,
       background: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.8),
-          borderRadius: BorderRadius.circular(16),
-        ),
+        decoration: BoxDecoration(color: Colors.red.withOpacity(0.8), borderRadius: BorderRadius.circular(16)),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 24),
         child: const Icon(Icons.delete_outline, color: Colors.white, size: 28),
       ),
       onDismissed: (_) {
-        ref.read(notesControllerProvider.notifier).deleteNote(note.id);
+        ref.read(notesControllerProvider).deleteNote(note.id);
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -285,11 +257,9 @@ class _HomePageState extends ConsumerState<HomePage> {
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => NoteDetailPage(note: note)),
-              );
+            onTap: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (context) => NoteDetailPage(note: note)));
+              ref.read(notesControllerProvider).loadNotes();
             },
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -310,17 +280,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          note.content,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        Text(note.content, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
                         const SizedBox(height: 4),
-                        Text(
-                          DateHelper.getRelativeTime(note.createdAt),
-                          style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13),
-                        ),
+                        Text(DateHelper.getRelativeTime(note.createdAt), style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13)),
                       ],
                     ),
                   ),
