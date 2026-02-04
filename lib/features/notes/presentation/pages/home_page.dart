@@ -3,35 +3,156 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vibe_notes/features/notes/presentation/providers/note_provider.dart';
 import 'package:vibe_notes/features/voice_record/presentation/widgets/recording_sheet.dart';
 import 'package:vibe_notes/features/notes/domain/note.dart';
+import 'package:vibe_notes/features/notes/presentation/pages/note_detail_page.dart';
 import 'package:vibe_notes/core/utils/date_helper.dart';
 
-class HomePage extends ConsumerWidget {
+// Sort options provider
+enum SortOption { newest, oldest }
+final sortOptionProvider = StateProvider<SortOption>((ref) => SortOption.newest);
+final searchQueryProvider = StateProvider<String>((ref) => '');
+
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
+  bool _showSearch = false;
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final notesAsync = ref.watch(notesControllerProvider);
+    final sortOption = ref.watch(sortOptionProvider);
+    final searchQuery = ref.watch(searchQueryProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Vibe Notes'),
+        title: _showSearch
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Search notes...',
+                  hintStyle: TextStyle(color: Colors.white38),
+                  border: InputBorder.none,
+                ),
+                onChanged: (value) {
+                  ref.read(searchQueryProvider.notifier).state = value;
+                },
+              )
+            : const Text('Vibe Notes'),
         actions: [
+          // Search toggle
           IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.white54),
-            onPressed: () {},
+            icon: Icon(_showSearch ? Icons.close : Icons.search, color: Colors.white70),
+            onPressed: () {
+              setState(() {
+                _showSearch = !_showSearch;
+                if (!_showSearch) {
+                  _searchController.clear();
+                  ref.read(searchQueryProvider.notifier).state = '';
+                }
+              });
+            },
+          ),
+          // Menu
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.white70),
+            color: const Color(0xFF2A2A2A),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            onSelected: (value) {
+              if (value == 'sort_newest') {
+                ref.read(sortOptionProvider.notifier).state = SortOption.newest;
+              } else if (value == 'sort_oldest') {
+                ref.read(sortOptionProvider.notifier).state = SortOption.oldest;
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                enabled: false,
+                child: Text('Sort by', style: TextStyle(color: Colors.white38, fontSize: 12)),
+              ),
+              PopupMenuItem(
+                value: 'sort_newest',
+                child: Row(
+                  children: [
+                    Icon(
+                      sortOption == SortOption.newest ? Icons.check : null,
+                      color: Colors.deepPurpleAccent,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 12),
+                    const Text('Newest first', style: TextStyle(color: Colors.white)),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'sort_oldest',
+                child: Row(
+                  children: [
+                    Icon(
+                      sortOption == SortOption.oldest ? Icons.check : null,
+                      color: Colors.deepPurpleAccent,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 12),
+                    const Text('Oldest first', style: TextStyle(color: Colors.white)),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              PopupMenuItem(
+                value: 'about',
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.white54, size: 18),
+                    const SizedBox(width: 12),
+                    const Text('About', style: TextStyle(color: Colors.white)),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
       body: notesAsync.when(
         data: (notes) {
-          if (notes.isEmpty) {
+          // Apply search filter
+          var filteredNotes = notes.where((note) {
+            if (searchQuery.isEmpty) return true;
+            return note.content.toLowerCase().contains(searchQuery.toLowerCase());
+          }).toList();
+          
+          // Apply sort
+          if (sortOption == SortOption.oldest) {
+            filteredNotes.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+          } else {
+            filteredNotes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          }
+
+          if (filteredNotes.isEmpty && searchQuery.isNotEmpty) {
+            return _buildNoResultsState();
+          }
+          
+          if (filteredNotes.isEmpty) {
             return _buildEmptyState(context);
           }
+          
           return ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-            itemCount: notes.length,
+            itemCount: filteredNotes.length,
             itemBuilder: (context, index) {
-              final note = notes[index];
+              final note = filteredNotes[index];
               return _buildNoteCard(context, note, ref);
             },
           );
@@ -44,12 +165,32 @@ class HomePage extends ConsumerWidget {
     );
   }
 
+  Widget _buildNoResultsState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 64, color: Colors.white24),
+          const SizedBox(height: 16),
+          const Text(
+            'No notes found',
+            style: TextStyle(color: Colors.white54, fontSize: 18),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Try a different search term',
+            style: TextStyle(color: Colors.white24, fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Gradient mic icon
           Container(
             width: 100,
             height: 100,
@@ -64,11 +205,7 @@ class HomePage extends ConsumerWidget {
           const SizedBox(height: 24),
           const Text(
             'No vibes yet',
-            style: TextStyle(
-              color: Colors.white54,
-              fontSize: 20,
-              fontWeight: FontWeight.w500,
-            ),
+            style: TextStyle(color: Colors.white54, fontSize: 20, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 8),
           const Text(
@@ -98,11 +235,7 @@ class HomePage extends ConsumerWidget {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF9C27B0), // Purple
-              Color(0xFF673AB7), // Deep Purple
-              Color(0xFF3F51B5), // Indigo hint
-            ],
+            colors: [Color(0xFF9C27B0), Color(0xFF673AB7), Color(0xFF3F51B5)],
           ),
           boxShadow: [
             BoxShadow(
@@ -119,11 +252,7 @@ class HomePage extends ConsumerWidget {
             ),
           ],
         ),
-        child: const Icon(
-          Icons.mic_rounded,
-          size: 32,
-          color: Colors.white,
-        ),
+        child: const Icon(Icons.mic_rounded, size: 32, color: Colors.white),
       ),
     );
   }
@@ -157,13 +286,15 @@ class HomePage extends ConsumerWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
             onTap: () {
-              // Future: Navigate to note detail
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => NoteDetailPage(note: note)),
+              );
             },
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  // Audio indicator
                   if (note.audioPath != null)
                     Container(
                       width: 44,
@@ -173,45 +304,27 @@ class HomePage extends ConsumerWidget {
                         color: Colors.deepPurpleAccent.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
-                        Icons.graphic_eq_rounded,
-                        color: Colors.deepPurpleAccent,
-                        size: 22,
-                      ),
+                      child: const Icon(Icons.graphic_eq_rounded, color: Colors.deepPurpleAccent, size: 22),
                     ),
-                  
-                  // Content
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           note.content,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
                         Text(
                           DateHelper.getRelativeTime(note.createdAt),
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.4),
-                            fontSize: 13,
-                          ),
+                          style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13),
                         ),
                       ],
                     ),
                   ),
-                  
-                  // Chevron
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: Colors.white.withOpacity(0.2),
-                  ),
+                  Icon(Icons.chevron_right_rounded, color: Colors.white.withOpacity(0.2)),
                 ],
               ),
             ),
