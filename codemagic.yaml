@@ -7,45 +7,9 @@ workflows:
       flutter: stable
       java: 17
     scripts:
-      - name: Create Flutter project structure
-        script: |
-          flutter create --org com.vibenotes --project-name vibe_notes .
-          echo "Android folder created:"
-          ls -la android/
-      - name: Set Android permissions
-        script: |
-          # Add microphone permission to AndroidManifest.xml
-          sed -i 's/<\/manifest>/    <uses-permission android:name="android.permission.RECORD_AUDIO"\/>\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"\/>\n<\/manifest>/' android/app/src/main/AndroidManifest.xml
       - name: Get Flutter packages
         script: flutter pub get
       - name: Build APK
         script: flutter build apk --release
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
-
-  ios-workflow:
-    name: iOS IPA Build
-    max_build_duration: 60
-    instance_type: mac_mini_m2
-    environment:
-      flutter: stable
-      xcode: latest
-      cocoapods: default
-    scripts:
-      - name: Create Flutter project structure
-        script: |
-          flutter create --org com.vibenotes --project-name vibe_notes .
-          echo "iOS folder created:"
-          ls -la ios/
-      - name: Set iOS permissions
-        script: |
-          # Add microphone permission to Info.plist
-          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string 'Vibe Notes needs microphone access to record voice notes.'" ios/Runner/Info.plist || true
-      - name: Get Flutter packages
-        script: flutter pub get
-      - name: Install CocoaPods
-        script: cd ios && pod install
-      - name: Build iOS (no codesign)
-        script: flutter build ipa --release --no-codesign
-    artifacts:
-      - build/ios/ipa/*.ipa
