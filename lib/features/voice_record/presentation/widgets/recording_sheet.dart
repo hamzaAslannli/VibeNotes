@@ -6,7 +6,6 @@ import 'package:vibe_notes/features/voice_record/presentation/providers/recorder
 import 'package:vibe_notes/features/notes/presentation/providers/note_provider.dart';
 import 'package:vibe_notes/features/notes/domain/note.dart';
 import 'package:vibe_notes/features/voice_record/presentation/widgets/waveform_widget.dart';
-import 'package:record/record.dart';
 
 class RecordingSheet extends ConsumerStatefulWidget {
   const RecordingSheet({super.key});
@@ -20,7 +19,7 @@ class _RecordingSheetState extends ConsumerState<RecordingSheet> with SingleTick
   late Animation<double> _pulseAnimation;
   bool _isRecording = false;
   double _amplitude = 0.0;
-  StreamSubscription<Amplitude>? _amplitudeSubscription;
+  StreamSubscription<double>? _amplitudeSubscription;
   String? _recordingPath;
 
   @override
@@ -48,13 +47,10 @@ class _RecordingSheetState extends ConsumerState<RecordingSheet> with SingleTick
       final fileName = 'vibe_${DateTime.now().millisecondsSinceEpoch}.m4a';
       _recordingPath = await recorder.start(fileName);
       
-      // Listen to amplitude
+      // Listen to amplitude (already normalized 0.0 - 1.0)
       _amplitudeSubscription = recorder.amplitudeStream.listen((amp) {
         if (mounted) {
-          setState(() {
-            // Normalize amplitude (usually -160 to 0 dB)
-            _amplitude = ((amp.current + 60) / 60).clamp(0.0, 1.0);
-          });
+          setState(() => _amplitude = amp);
         }
       });
       
@@ -185,7 +181,6 @@ class _RecordingSheetState extends ConsumerState<RecordingSheet> with SingleTick
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Status
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
@@ -202,16 +197,10 @@ class _RecordingSheetState extends ConsumerState<RecordingSheet> with SingleTick
             ),
           ),
           const SizedBox(height: 16),
-          
-          // Waveform
           WaveformWidget(isRecording: _isRecording, amplitude: _amplitude),
           const SizedBox(height: 16),
-          
-          // Timer
           Text(formattedDuration, style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w200, color: Colors.white, letterSpacing: 4, fontFeatures: [FontFeature.tabularFigures()])),
           const SizedBox(height: 24),
-          
-          // Stop button
           ScaleTransition(
             scale: _isRecording ? _pulseAnimation : const AlwaysStoppedAnimation(1.0),
             child: GestureDetector(

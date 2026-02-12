@@ -1,7 +1,6 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:vibe_notes/features/notes/domain/note.dart';
 import 'package:vibe_notes/features/notes/presentation/providers/note_provider.dart';
 import 'package:vibe_notes/core/utils/date_helper.dart';
@@ -19,63 +18,16 @@ class _NoteDetailPageState extends ConsumerState<NoteDetailPage> {
   late TextEditingController _titleController;
   bool _isEditing = false;
   bool _hasChanges = false;
-  
-  // Audio player
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  bool _isPlaying = false;
-  Duration _position = Duration.zero;
-  Duration _duration = Duration.zero;
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.note.content);
-    _initAudioPlayer();
-  }
-
-  Future<void> _initAudioPlayer() async {
-    if (widget.note.audioPath != null) {
-      try {
-        final file = File(widget.note.audioPath!);
-        if (await file.exists()) {
-          await _audioPlayer.setFilePath(widget.note.audioPath!);
-          
-          _audioPlayer.durationStream.listen((d) {
-            if (mounted && d != null) setState(() => _duration = d);
-          });
-          
-          _audioPlayer.positionStream.listen((p) {
-            if (mounted) setState(() => _position = p);
-          });
-          
-          _audioPlayer.playerStateStream.listen((state) {
-            if (mounted) {
-              setState(() => _isPlaying = state.playing);
-              if (state.processingState == ProcessingState.completed) {
-                _audioPlayer.seek(Duration.zero);
-                _audioPlayer.pause();
-              }
-            }
-          });
-        }
-      } catch (e) {
-        debugPrint('Error loading audio: $e');
-      }
-    }
-  }
-
-  void _togglePlayPause() {
-    if (_isPlaying) {
-      _audioPlayer.pause();
-    } else {
-      _audioPlayer.play();
-    }
   }
 
   @override
   void dispose() {
     _titleController.dispose();
-    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -85,11 +37,6 @@ class _NoteDetailPageState extends ConsumerState<NoteDetailPage> {
       await ref.read(storageServiceProvider).saveNote(widget.note);
     }
     setState(() => _isEditing = false);
-  }
-
-  String _formatDuration(Duration d) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    return '${twoDigits(d.inMinutes)}:${twoDigits(d.inSeconds.remainder(60))}';
   }
 
   @override
@@ -200,7 +147,7 @@ class _NoteDetailPageState extends ConsumerState<NoteDetailPage> {
             
             const SizedBox(height: 32),
             
-            // Audio Player
+            // Audio section - simplified for cross-platform
             if (widget.note.audioPath != null)
               Container(
                 padding: const EdgeInsets.all(20),
@@ -209,53 +156,36 @@ class _NoteDetailPageState extends ConsumerState<NoteDetailPage> {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.3)),
                 ),
-                child: Column(
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        // Play button
-                        GestureDetector(
-                          onTap: _togglePlayPause,
-                          child: Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: Colors.deepPurpleAccent,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Icon(_isPlaying ? Icons.pause : Icons.play_arrow, color: Colors.white, size: 28),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Voice Recording', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                              const SizedBox(height: 4),
-                              Text('${_formatDuration(_position)} / ${_formatDuration(_duration)}', style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13)),
-                            ],
-                          ),
-                        ),
-                      ],
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(color: Colors.deepPurpleAccent.withOpacity(0.3), borderRadius: BorderRadius.circular(16)),
+                      child: const Icon(Icons.graphic_eq, color: Colors.deepPurpleAccent, size: 28),
                     ),
-                    const SizedBox(height: 16),
-                    // Progress bar
-                    SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        activeTrackColor: Colors.deepPurpleAccent,
-                        inactiveTrackColor: Colors.white24,
-                        thumbColor: Colors.deepPurpleAccent,
-                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                        overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Voice Recording', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 4),
+                          Text(
+                            kIsWeb ? 'Playback available on mobile' : 'Recorded ${DateHelper.getRelativeTime(widget.note.createdAt)}',
+                            style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13),
+                          ),
+                        ],
                       ),
-                      child: Slider(
-                        value: _position.inMilliseconds.toDouble(),
-                        max: _duration.inMilliseconds.toDouble().clamp(1, double.infinity),
-                        onChanged: (value) {
-                          _audioPlayer.seek(Duration(milliseconds: value.toInt()));
-                        },
+                    ),
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: kIsWeb ? Colors.grey : Colors.deepPurpleAccent,
+                        borderRadius: BorderRadius.circular(12),
                       ),
+                      child: Icon(Icons.play_arrow, color: Colors.white.withOpacity(kIsWeb ? 0.5 : 1.0)),
                     ),
                   ],
                 ),
