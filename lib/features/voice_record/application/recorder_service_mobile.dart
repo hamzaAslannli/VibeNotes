@@ -4,7 +4,7 @@ import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 
 class PlatformRecorderService {
-  final Record _audioRecorder = Record();
+  final AudioRecorder _audioRecorder = AudioRecorder();
   
   Stream<double> get amplitudeStream => 
     _audioRecorder.onAmplitudeChanged(const Duration(milliseconds: 100))
@@ -21,10 +21,12 @@ class PlatformRecorderService {
       await Directory(dir.path).create(recursive: true);
 
       await _audioRecorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          bitRate: 128000,
+          sampleRate: 44100,
+        ),
         path: path,
-        encoder: AudioEncoder.aacLc,
-        bitRate: 128000,
-        samplingRate: 44100,
       );
       
       return path;
