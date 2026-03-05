@@ -1,7 +1,7 @@
 name: vibe_notes
 description: A minimalist voice note app with AI capabilities.
 publish_to: 'none'
-version: 1.0.0+1
+version: 3.0.0+3
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -15,6 +15,12 @@ dependencies:
   record: ^6.0.0
   path_provider: ^2.1.5
   cupertino_icons: ^1.0.8
+  google_generative_ai: ^0.4.0
+  http: ^1.2.0
+  flutter_markdown: ^0.7.0
+  share_plus: ^10.0.0
+  intl: ^0.19.0
+  url_launcher: ^6.2.0
 
 dev_dependencies:
   flutter_test:

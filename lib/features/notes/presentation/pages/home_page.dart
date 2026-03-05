@@ -4,6 +4,7 @@ import 'package:vibe_notes/features/notes/presentation/providers/note_provider.d
 import 'package:vibe_notes/features/voice_record/presentation/widgets/recording_sheet.dart';
 import 'package:vibe_notes/features/notes/domain/note.dart';
 import 'package:vibe_notes/features/notes/presentation/pages/note_detail_page.dart';
+import 'package:vibe_notes/features/settings/presentation/pages/settings_page.dart';
 import 'package:vibe_notes/core/utils/date_helper.dart';
 
 enum SortOption { newest, oldest }
@@ -74,6 +75,9 @@ class _HomePageState extends ConsumerState<HomePage> {
             onSelected: (value) {
               if (value == 'sort_newest') ref.read(sortOptionProvider.notifier).state = SortOption.newest;
               else if (value == 'sort_oldest') ref.read(sortOptionProvider.notifier).state = SortOption.oldest;
+              else if (value == 'settings') {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage()));
+              }
             },
             itemBuilder: (context) => [
               const PopupMenuItem(enabled: false, child: Text('Sort by', style: TextStyle(color: Colors.white38, fontSize: 12))),
@@ -93,20 +97,77 @@ class _HomePageState extends ConsumerState<HomePage> {
                   const Text('Oldest first', style: TextStyle(color: Colors.white)),
                 ]),
               ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'settings',
+                child: Row(children: [
+                  Icon(Icons.settings, color: Colors.white54, size: 18),
+                  SizedBox(width: 12),
+                  Text('Settings', style: TextStyle(color: Colors.white)),
+                ]),
+              ),
             ],
           ),
         ],
       ),
       body: Column(
         children: [
+          // Stats header
+          _buildStatsHeader(notes),
           // Category filter chips
           _buildCategoryFilter(categoryFilter),
           // Notes list
           Expanded(child: _buildBody(notes, isLoading, sortOption, searchQuery, categoryFilter)),
         ],
       ),
-      floatingActionButton: _buildPremiumFAB(context),
+      floatingActionButton: _buildFABRow(context),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+    );
+  }
+
+  Widget _buildStatsHeader(List<Note> notes) {
+    final noteCount = notes.length;
+    final aiCount = notes.where((n) => n.isSummarized || n.expandedIdea != null).length;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.deepPurple.withOpacity(0.15), Colors.purple.withOpacity(0.05)],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.15)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.deepPurpleAccent.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.psychology_rounded, color: Colors.deepPurpleAccent, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  noteCount == 0 ? 'Start capturing ideas!' : '$noteCount idea${noteCount > 1 ? 's' : ''} captured',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+                if (aiCount > 0)
+                  Text(
+                    '$aiCount AI-enhanced',
+                    style: TextStyle(color: Colors.cyanAccent.withOpacity(0.6), fontSize: 12),
+                  ),
+              ],
+            ),
+          ),
+          Text('\u{1F9E0}', style: const TextStyle(fontSize: 24)),
+        ],
+      ),
     );
   }
 
@@ -226,30 +287,141 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildPremiumFAB(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        showModalBottomSheet(
-          context: context,
-          backgroundColor: Colors.transparent,
-          isScrollControlled: true,
-          builder: (context) => const RecordingSheet(),
-        );
-      },
-      child: Container(
-        width: 72,
-        height: 72,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF9C27B0), Color(0xFF673AB7), Color(0xFF3F51B5)]),
-          boxShadow: [
-            BoxShadow(color: Colors.deepPurpleAccent.withOpacity(0.5), blurRadius: 24, offset: const Offset(0, 8)),
-            BoxShadow(color: Colors.purple.withOpacity(0.3), blurRadius: 40, spreadRadius: -5, offset: const Offset(0, 12)),
+  Widget _buildFABRow(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Quick text note button
+        GestureDetector(
+          onTap: () => _showQuickTextNoteDialog(context),
+          child: Container(
+            width: 52,
+            height: 52,
+            margin: const EdgeInsets.only(right: 16),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF2A2A2A),
+              border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.3)),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4)),
+              ],
+            ),
+            child: const Icon(Icons.edit_note_rounded, size: 24, color: Colors.white70),
+          ),
+        ),
+        // Main mic button
+        GestureDetector(
+          onTap: () {
+            showModalBottomSheet(
+              context: context,
+              backgroundColor: Colors.transparent,
+              isScrollControlled: true,
+              builder: (context) => const RecordingSheet(),
+            );
+          },
+          child: Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF9C27B0), Color(0xFF673AB7), Color(0xFF3F51B5)]),
+              boxShadow: [
+                BoxShadow(color: Colors.deepPurpleAccent.withOpacity(0.5), blurRadius: 24, offset: const Offset(0, 8)),
+                BoxShadow(color: Colors.purple.withOpacity(0.3), blurRadius: 40, spreadRadius: -5, offset: const Offset(0, 12)),
+              ],
+            ),
+            child: const Icon(Icons.mic_rounded, size: 32, color: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showQuickTextNoteDialog(BuildContext context) async {
+    final controller = TextEditingController();
+    NoteCategory selectedCategory = NoteCategory.other;
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Quick Note \u270F\uFE0F', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: controller,
+                autofocus: true,
+                maxLines: 3,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Type your idea...',
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  filled: true,
+                  fillColor: Colors.white10,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.deepPurpleAccent, width: 2)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text('Category', style: TextStyle(color: Colors.white70, fontSize: 14)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: NoteCategory.values.map((category) {
+                  final isSelected = category == selectedCategory;
+                  return GestureDetector(
+                    onTap: () => setDialogState(() => selectedCategory = category),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isSelected ? Color(category.colorValue).withOpacity(0.3) : Colors.white10,
+                        borderRadius: BorderRadius.circular(16),
+                        border: isSelected ? Border.all(color: Color(category.colorValue), width: 1.5) : null,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(category.emoji, style: const TextStyle(fontSize: 12)),
+                          const SizedBox(width: 4),
+                          Text(category.displayName, style: TextStyle(color: isSelected ? Colors.white : Colors.white60, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, null),
+              child: const Text('Cancel', style: TextStyle(color: Colors.white38)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (controller.text.trim().isNotEmpty) {
+                  Navigator.pop(context, {'title': controller.text.trim(), 'category': selectedCategory});
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurpleAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              child: const Text('Save', style: TextStyle(color: Colors.white)),
+            ),
           ],
         ),
-        child: const Icon(Icons.mic_rounded, size: 32, color: Colors.white),
       ),
     );
+
+    if (result != null) {
+      await ref.read(notesControllerProvider).addNote(
+        result['title'] as String,
+        category: result['category'] as NoteCategory,
+      );
+    }
   }
 
   Widget _buildNoteCard(BuildContext context, Note note, WidgetRef ref) {
@@ -302,7 +474,12 @@ class _HomePageState extends ConsumerState<HomePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(note.content, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Row(
+                          children: [
+                            Expanded(child: Text(note.content, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                            if (note.isSummarized) Padding(padding: const EdgeInsets.only(left: 6), child: Icon(Icons.auto_awesome, color: Colors.cyanAccent.withOpacity(0.6), size: 16)),
+                          ],
+                        ),
                         const SizedBox(height: 4),
                         Row(
                           children: [

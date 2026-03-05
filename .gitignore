@@ -39,7 +39,10 @@ android/captures/
 android/gradlew
 android/gradlew.bat
 android/local.properties
+android/app/.cxx/
+android/.kotlin/
 **/android/flutter_plugins.xml
+**/GeneratedPluginRegistrant.java
 
 # iOS
 ios/.generated/
@@ -64,3 +67,9 @@ windows/flutter/ephemeral/
 
 # Linux
 linux/flutter/ephemeral/
+
+# Project extras
+debug.keystore
+apk_output/
+mcp-tools-*/
+General_Rule.md

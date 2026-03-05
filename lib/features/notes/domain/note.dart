@@ -38,6 +38,16 @@ extension NoteCategoryExtension on NoteCategory {
       case NoteCategory.other: return 0xFF9E9E9E;     // Gray
     }
   }
+
+  static NoteCategory fromString(String? name) {
+    switch (name?.toLowerCase()) {
+      case 'work': return NoteCategory.work;
+      case 'personal': return NoteCategory.personal;
+      case 'ideas': return NoteCategory.ideas;
+      case 'meetings': return NoteCategory.meetings;
+      default: return NoteCategory.other;
+    }
+  }
 }
 
 class Note {
@@ -48,6 +58,11 @@ class Note {
   String? audioPath;
   bool isSummarized;
   NoteCategory category;
+  String? transcript;     // AI transcription of audio
+  String? summary;        // AI-generated summary
+  List<String> keywords;  // AI-extracted keywords
+  String? actionItems;    // AI-generated action items
+  String? expandedIdea;   // AI-expanded idea
 
   Note({
     required this.id,
@@ -57,6 +72,11 @@ class Note {
     this.audioPath,
     this.isSummarized = false,
     this.category = NoteCategory.other,
+    this.transcript,
+    this.summary,
+    this.keywords = const [],
+    this.actionItems,
+    this.expandedIdea,
   });
 
   Map<String, dynamic> toJson() => {
@@ -67,6 +87,11 @@ class Note {
     'audioPath': audioPath,
     'isSummarized': isSummarized,
     'category': category.index,
+    'transcript': transcript,
+    'summary': summary,
+    'keywords': keywords,
+    'actionItems': actionItems,
+    'expandedIdea': expandedIdea,
   };
 
   factory Note.fromJson(Map<String, dynamic> json) => Note(
@@ -77,5 +102,10 @@ class Note {
     audioPath: json['audioPath'] as String?,
     isSummarized: json['isSummarized'] as bool? ?? false,
     category: NoteCategory.values[json['category'] as int? ?? 4],
+    transcript: json['transcript'] as String?,
+    summary: json['summary'] as String?,
+    keywords: List<String>.from(json['keywords'] ?? []),
+    actionItems: json['actionItems'] as String?,
+    expandedIdea: json['expandedIdea'] as String?,
   );
 }
